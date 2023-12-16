@@ -2,7 +2,9 @@
 <p align="center">
   <img src="Lizard.jpg" width="400" height="400">
 </p>
-
+<p align="center">
+  <img src="lizardwrote.png">
+</p>
 <b>Note : </b>It's fairly new framework and it has one issue it supports just http get.
 
 <br>
@@ -19,6 +21,5 @@ if you create class like image above you can send get request to localhost:8080/
 <p align="center">
   <img src="json.png" width="200" height="200">
 </p>
-
 
 
