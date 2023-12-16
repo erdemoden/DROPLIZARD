@@ -16,7 +16,9 @@ After downloading this project, you can compile it with Maven and then use it in
 
 if you create class like image above you can send get request to localhost:8080/deneme and get denemeDto class as json like image below
 
-
+<p align="center">
+  <img src="json.png" width="200" height="200">
+</p>
 
 
 
