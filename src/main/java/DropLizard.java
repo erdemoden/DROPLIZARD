@@ -19,7 +19,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Set;
+import java.util.*;
 
 public class DropLizard {
     private static String DROPLIZARD = """
@@ -53,12 +53,21 @@ public class DropLizard {
         Set<Class<?>> clazs = reflections.getTypesAnnotatedWith(ControlMe.class);
         clazs.getClass().getMethods()[0].isAnnotationPresent(GetMe.class);
         int i = 0;
+        Map<String,Context> basePaths = new HashMap<>();
         for (Class<?> clas : clazs) {
             ControlMe controlMe = clas.getAnnotation(ControlMe.class);
             for (Method method : clas.getMethods()) {
                 if (method.isAnnotationPresent(GetMe.class)) {
                     GetMe getMe = method.getAnnotation(GetMe.class);
-                    Context ctx = tomcat.addContext(controlMe.basePath(), new File(".").getAbsolutePath());
+                    Context ctx = null;
+                    if(basePaths.containsKey(controlMe.basePath())){
+                        ctx = basePaths.get(controlMe.basePath());
+                    }
+                    else {
+                        ctx = tomcat.addContext(controlMe.basePath(), new File(".").getAbsolutePath());
+                        basePaths.put(controlMe.basePath(),ctx);
+                    }
+                    System.out.println(ctx.getName());
                     tomcat.addServlet(ctx, method.getName() + i, new HttpServlet() {
                         @Override
                         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
