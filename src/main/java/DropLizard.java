@@ -1,5 +1,6 @@
 import annotations.ControlMe;
 import annotations.GetMe;
+import annotations.GiveItToMe;
 import com.google.gson.Gson;
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
@@ -19,7 +20,9 @@ import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class DropLizard {
     private static String DROPLIZARD = """
@@ -53,29 +56,52 @@ public class DropLizard {
         Set<Class<?>> clazs = reflections.getTypesAnnotatedWith(ControlMe.class);
         clazs.getClass().getMethods()[0].isAnnotationPresent(GetMe.class);
         int i = 0;
-        Map<String,Context> basePaths = new HashMap<>();
         for (Class<?> clas : clazs) {
             ControlMe controlMe = clas.getAnnotation(ControlMe.class);
             for (Method method : clas.getMethods()) {
                 if (method.isAnnotationPresent(GetMe.class)) {
                     GetMe getMe = method.getAnnotation(GetMe.class);
-                    Context ctx = null;
-                    if(basePaths.containsKey(controlMe.basePath())){
-                        ctx = basePaths.get(controlMe.basePath());
-                    }
-                    else {
-                        ctx = tomcat.addContext(controlMe.basePath(), new File(".").getAbsolutePath());
-                        basePaths.put(controlMe.basePath(),ctx);
-                    }
-                    System.out.println(ctx.getName());
+                    List<Parameter> parameters = Arrays.asList(method.getParameters()).stream().filter(parameter-> parameter.isAnnotationPresent(GiveItToMe.class)).collect(Collectors.toList());
+                    Context ctx = tomcat.addContext(controlMe.basePath(), new File(".").getAbsolutePath());
+                    List<Object> objects = new LinkedList<>();
                     tomcat.addServlet(ctx, method.getName() + i, new HttpServlet() {
                         @Override
                         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+                            if (parameters.size()>0) {
+                                for (Parameter parameter : parameters) {
+                                    if(parameter.getType().equals(int.class) || parameter.getType().equals(Integer.class)){
+                                        Object parameterValue = Integer.parseInt(req.getParameter(parameter.getAnnotation(GiveItToMe.class).name()));
+                                        Object parameterValueObject = parameterValue;;
+                                        System.out.println(parameterValueObject);
+                                        objects.add(parameterValue);
+                                        continue;
+                                    }
+                                    if (parameter.getType().equals(String.class)) {
+                                        Object parameterValue = req.getParameter(parameter.getAnnotation(GiveItToMe.class).name());
+                                        Object parameterValueObject = parameterValue;;
+                                        System.out.println(parameterValueObject);
+                                        objects.add(parameterValue);
+                                        continue;
+                                    }
+                                    if (parameter.getType().equals(List.class)) {
+                                        Object parameterValue = Arrays.asList(req.getParameter(parameter.getAnnotation(GiveItToMe.class).name()).split(","));
+                                        Object parameterValueObject = parameterValue;;
+                                        //System.out.println(parameterValueObject);
+                                        objects.add(parameterValue);
+                                        continue;
+                                    }
+                                    /*Object parameterValue = req.getParameter(parameter.getAnnotation(GiveItToMe.class).name());
+                                    Object parameterValueObject = parameterValue;;
+                                    System.out.println(parameterValueObject);
+                                    objects.add(parameterValue);*/
+                                }
+                            }
                             Writer writer = resp.getWriter();
                             resp.setContentType("application/json");
                             resp.setCharacterEncoding("UTF-8");
                             try {
-                                writer.write(new Gson().toJson(method.invoke(clas.newInstance())));
+                                writer.write(new Gson().toJson(method.invoke(clas.newInstance(), objects.toArray())));
+                                objects.removeAll(objects);
                             } catch (IllegalAccessException e) {
                                 throw new RuntimeException(e);
                             } catch (InvocationTargetException e) {
@@ -92,5 +118,5 @@ public class DropLizard {
         tomcat.getConnector();
         tomcat.start();
         tomcat.getServer().await();
-}
+    }
 }
